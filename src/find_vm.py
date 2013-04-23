@@ -67,13 +67,6 @@ def connectToHost(vmhost, username, password, port=22):
 
     return client
 
-def copyFileToHost(client, srcfile, dstfile):
-    if client:
-        sftp = client.open_sftp()
-        sftp.put(srcfile, dstfile)
-        sftp.close()
-
-
 
 def getVmList(vmhost, username, password):
     vmlist = []

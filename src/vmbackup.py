@@ -1,6 +1,8 @@
 #!/usr/bin/python
 import find_vm
+import scp
 import sys
+import shutil
 import os
 import os.path
 import subprocess
@@ -29,7 +31,7 @@ def sendEmailAlert(title, body=None):
 
 
 def main(argv):
-    execfile("settings.py", config)
+    execfile("/etc/ssisvmbackup/settings.py", config)
 
     if len(argv) == 0:
         msg = "Error: please specify VM name"
@@ -43,51 +45,73 @@ def main(argv):
 
     if vmhost:
         msg = "VM found in host %s" % vmhost
+        print msg
 
-        # Take mksbackup template and create a new config file for this VM
-        config_file = os.path.join(config["mksbackup_config_dir"],"%s.ini" % vmname)
+        # Create working folder in temp folder
+        working_folder = os.path.join(config["temp_folder"],"ssisghetto-%s" % vmname)
 
-        f1 = open(os.path.join(config["mksbackup_config_dir"],config["mksbackup_template"]), 'r')
+        remote_folder = os.path.join(config["ghettovcb_remote_folder"],"ssisghetto-%s" % vmname)
+
+        if os.path.isdir(working_folder):
+            shutil.rmtree(working_folder)
+        os.makedirs(working_folder)
+        shutil.copy(os.path.join(config["ghettovcb_local_folder"],config["ghettovcb_script"]),working_folder)
+
+        # Take ghettoVCB template and create a new config file for this VM
+        config_file = os.path.join(working_folder,"ghetto-{0}.conf".format(vmname))
+
+        f1 = open(os.path.join(config["ghettovcb_local_folder"],config["ghettovcb_template"]), 'r')
         f2 = open(config_file, 'w')
         for line in f1:
-            if line.startswith("host="):
-                line = "host=%s\n" % vmhost
-            if line.startswith("vm_list="):
-                line = "vm_list=%s\n" % vmname
+            if line.startswith("EMAIL_SERVER="):
+                line = "EMAIL_SERVER=%s\n" % config["smtp_server"]
 
-            if line.startswith("smtp_host="):
-                line = "smtp_host=%s\n" % config["smtp_server"]
+            if line.startswith("EMAIL_FROM="):
+                line = "EMAIL_FROM=%s\n" % config["from_email"]
 
-            if line.startswith("sender="):
-                line = "sender=%s\n" % config["from_email"]
-
-            if line.startswith("recipients="):
-                line = "recipients=%s\n" % config["admin_email"]
-
-            if line.startswith("login="):
-                line = "login=%s\n" % config["username"]
-
-            if line.startswith("password="):
-                line = "password=%s\n" % config["password"]
+            if line.startswith("EMAIL_TO="):
+                line = "EMAIL_TO=%s\n" % config["admin_email"]
 
             f2.write(line)
 
         f1.close()
         f2.close()
 
-        # Execute mksbackup
-        mksbackup_cmd = ['/usr/local/bin/mksbackup', '-c', config_file, '-l', config["mksbackup_log"], '-q', 'backup', 'SSIS_BACKUP' ]
+        # Copy ghettovcb script and config file to VMWare host
+        client = find_vm.connectToHost(vmhost, config["username"], config["password"])
+        scpclient=scp.SCPClient(client.get_transport())
 
-        print "Backing up using this command:"
-        print subprocess.list2cmdline(mksbackup_cmd)
+        scpclient.put(working_folder, config["ghettovcb_remote_folder"], recursive=True)
 
-        p = subprocess.Popen(mksbackup_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        out, err = p.communicate()
+        # Execute ghettovcb through Paramiko
+        dryrun_flag = ""
+        if config["dryrun"]:
+            dryrun_flag = " -d dryrun"
+
+        ghetto_command = "{ghettoscript} -m {vmname} -g {configfile} -l {logfile} -w {workingfolder}{dryrun_flag}".format(
+            ghettoscript= os.path.join(remote_folder,config["ghettovcb_script"]),
+            vmname=vmname,
+            configfile= os.path.join(remote_folder,"ghetto-{0}.conf".format(vmname)),
+            logfile= os.path.join(remote_folder,"ghetto-{0}.log".format(vmname)),
+            workingfolder= os.path.join(remote_folder,"ghetto-{0}.work".format(vmname)),
+            dryrun_flag=dryrun_flag
+        )
+
+        exit_code, output = find_vm.RunCommand(client.get_transport(), ghetto_command)
+        print ghetto_command
+
+        # Take the output and mail it to admin
+        sendEmailAlert("VMBackup: {vmname} on {vmhost}, result {exit_code}".format(vmname=vmname,vmhost=vmhost,exit_code=exit_code), body=output)
+
+        # Cleanup!
+        exit_code, output = find_vm.RunCommand(client.get_transport(), "rm -rf {0}".format(remote_folder))
+        shutil.rmtree(working_folder)
 
         sys.exit(0)
     else:
         print "VM not found!"
+        sendEmailAlert("VMBackup: {vmname} NOT FOUND!".format(vmname=vmname))
         sys.exit(1)
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
+    main(sys.argv[1:])
