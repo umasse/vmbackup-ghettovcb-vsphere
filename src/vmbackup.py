@@ -44,7 +44,7 @@ def main(argv):
     vmhost = find_vm.findVm(vmname, config["hosts"], config["username"], config["password"])
 
     if vmhost:
-        msg = "VM found in host %s" % vmhost
+        msg = "VM {0} found in host {1}".format(vmname, vmhost)
         print msg
 
         # Create working folder in temp folder
@@ -97,8 +97,8 @@ def main(argv):
             dryrun_flag=dryrun_flag
         )
 
+        print "Running: {0}".format(ghetto_command)
         exit_code, output = find_vm.RunCommand(client.get_transport(), ghetto_command)
-        print ghetto_command
 
         # Take the output and mail it to admin
         sendEmailAlert("VMBackup: {vmname} on {vmhost}, result {exit_code}".format(vmname=vmname,vmhost=vmhost,exit_code=exit_code), body=output)
