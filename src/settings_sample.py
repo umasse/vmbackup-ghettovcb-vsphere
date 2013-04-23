@@ -1,3 +1,9 @@
-hosts = [ '172.100.5.1','172.100.5.2','172.100.5.3','172.100.5.4' ]
-username = 'root'
-password = 'xxxxxxxx'
+hosts = [ '10.1.1.21','10.1.1.22','10.1.1.23','10.1.1.24' ]
+username = 'user'
+password = 'xxxxxxx'
+from_email = 'sample@server.com'
+admin_email = 'admin@server.com'
+smtp_server = 'mail.server.com'
+mksbackup_template = 'mksbackup_ini_template'
+mksbackup_config_dir = '/etc/mksbackup'
+mksbackup_log = '/var/log/mksbackup.log'

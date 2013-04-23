@@ -1,8 +1,53 @@
 #!/usr/bin/python
 import paramiko
+import scp
 import os
 import os.path
 import sys
+
+# RunCommand is taken from MKSBackup (https://pypi.python.org/pypi/mksbackup)
+# This makes this code also GPLv3 or later!
+
+# ---------------------------------------------------------------------------
+def RunCommand(t, command, log=None):
+    """t is a paramiko transport
+    """
+    chan=t.open_session()
+    exit_code=None
+    chan.set_combine_stderr(True)
+    cmd_line=command+' ; echo exit_code=$?'
+    chan.exec_command(cmd_line)
+    output=''
+    while 1:
+        try:
+            x=chan.recv(1024)
+            if len(x)==0:
+                break
+            output+=x
+        except socket.timeout:
+            break
+
+    exit_code=chan.recv_exit_status()
+    chan.close()
+
+    # ESX(i) don't return any usable exit_code, use the one returned by  "echo exit_code=$?"
+    pos1=output.rfind('exit_code=')
+    pos2=output.find('\n', pos1)
+    exit_code=int(output[pos1+10:pos2])
+    output=output[:pos1]
+
+    if log:
+        l=log.debug
+        if exit_code!=0:
+            l=log.warning
+
+        if output or exit_code!=0:
+            l('exit_code=%d command=%s', exit_code, cmd_line)
+            for line in output.split('\n'):
+                l('> %s', line)
+
+    return exit_code, output
+
 
 def connectToHost(vmhost, username, password, port=22):
     # Connect to host
@@ -21,6 +66,14 @@ def connectToHost(vmhost, username, password, port=22):
         return None
 
     return client
+
+def copyFileToHost(client, srcfile, dstfile):
+    if client:
+        sftp = client.open_sftp()
+        sftp.put(srcfile, dstfile)
+        sftp.close()
+
+
 
 def getVmList(vmhost, username, password):
     vmlist = []
@@ -99,4 +152,13 @@ def main(argv):
         sys.exit(1)
 
 if __name__ == "__main__":
-   main(sys.argv[1:])
+
+    #srcfile = "ssisghetto"
+    #dstfile = "/tmp/"
+    #client = connectToHost("172.20.1.21", "root", "xxxxxx")
+    #scpclient=scp.SCPClient(client.get_transport())
+    #scpclient.put(srcfile, dstfile, recursive=True)
+
+    #main(sys.argv[1:])
+
+    pass
