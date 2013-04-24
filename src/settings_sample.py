@@ -4,6 +4,12 @@ password = 'xxxxxxx'
 from_email = 'sample@server.com'
 admin_email = 'admin@server.com'
 smtp_server = 'mail.server.com'
-mksbackup_template = 'mksbackup_ini_template'
-mksbackup_config_dir = '/etc/mksbackup'
-mksbackup_log = '/var/log/mksbackup.log'
+
+
+temp_folder = '/tmp'
+# Set to False to actually do backups
+dryrun = True
+ghettovcb_template = 'ghettoVCB.conf'
+ghettovcb_script = 'ghettoVCB.sh'
+ghettovcb_local_folder = '/etc/ssisvmbackup/src/ssisghetto'
+ghettovcb_remote_folder = '/tmp'
