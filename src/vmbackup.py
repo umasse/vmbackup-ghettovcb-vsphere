@@ -48,9 +48,9 @@ def main(argv):
         print msg
 
         # Create working folder in temp folder
-        working_folder = os.path.join(config["temp_folder"],"ssisghetto-%s" % vmname)
+        working_folder = os.path.join(config["temp_folder"],"ssisghetto-{0}".format(vmname))
 
-        remote_folder = os.path.join(config["ghettovcb_remote_folder"],"ssisghetto-%s" % vmname)
+        remote_folder = os.path.join(config["ghettovcb_remote_folder"],"ssisghetto-{0}".format(vmname))
 
         if os.path.isdir(working_folder):
             shutil.rmtree(working_folder)
@@ -64,13 +64,13 @@ def main(argv):
         f2 = open(config_file, 'w')
         for line in f1:
             if line.startswith("EMAIL_SERVER="):
-                line = "EMAIL_SERVER=%s\n" % config["smtp_server"]
+                line = "EMAIL_SERVER={0}\n".format(config["smtp_server"])
 
             if line.startswith("EMAIL_FROM="):
-                line = "EMAIL_FROM=%s\n" % config["from_email"]
+                line = "EMAIL_FROM={0}\n".format(config["from_email"])
 
             if line.startswith("EMAIL_TO="):
-                line = "EMAIL_TO=%s\n" % config["admin_email"]
+                line = "EMAIL_TO={0}\n".format(config["admin_email"])
 
             f2.write(line)
 
@@ -101,7 +101,10 @@ def main(argv):
         exit_code, output = find_vm.RunCommand(client.get_transport(), ghetto_command)
 
         # Take the output and mail it to admin
-        sendEmailAlert("VMBackup: {vmname} on {vmhost}, result {exit_code}".format(vmname=vmname,vmhost=vmhost,exit_code=exit_code), body=output)
+        if exit_code != 0:
+            sendEmailAlert("[VMBackup] ERROR! {vmname} on {vmhost}, result {exit_code}".format(vmname=vmname,vmhost=vmhost,exit_code=exit_code), body=output)
+        else:
+            sendEmailAlert("[VMBackup] {vmname} on {vmhost}, result {exit_code}".format(vmname=vmname,vmhost=vmhost,exit_code=exit_code), body=output)
 
         # Cleanup!
         exit_code, output = find_vm.RunCommand(client.get_transport(), "rm -rf {0}".format(remote_folder))
@@ -110,7 +113,7 @@ def main(argv):
         sys.exit(0)
     else:
         print "VM not found!"
-        sendEmailAlert("VMBackup: {vmname} NOT FOUND!".format(vmname=vmname))
+        sendEmailAlert("[VMBackup] ERROR! {vmname} NOT FOUND!".format(vmname=vmname))
         sys.exit(1)
 
 if __name__ == "__main__":
